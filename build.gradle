@@ -1,0 +1,81 @@
+group 'com.musicbot'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    ext.kotlin_version = '1.1.0-beta-38'
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven { url "https://dl.bintray.com/kotlin/kotlin-eap/" }
+        maven { url "https://dl.bintray.com/kotlin/kotlin-eap-1.1" }
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'kotlin'
+
+sourceCompatibility = 1.5
+
+repositories {
+    maven { url 'http://dl.bintray.com/kotlin/kotlin-eap-1.1' }
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+    compile 'net.dv8tion:JDA:3.0.BETA2_120'
+    compile 'com.sedmelluq:lavaplayer:1.1.45'
+    compile 'org.apache.logging.log4j:log4j-core:2.7'
+
+    // Async tasks
+    compile 'nl.komponents.kovenant:kovenant:3.3.0'
+
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+}
+
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.musicbot.Main'
+    }
+    doFirst {
+        from { configurations.runtime.collect { it.isDirectory() ? it : zipTree(it) } }
+    }
+}
+
+task copyDist(type: Copy) {
+    from('dist') {
+        exclude '/log'
+    }
+
+    into 'build/output'
+    project.exec {
+        commandLine('chmod',  '+x', 'build/output/start.sh')
+    }
+}
+
+
+task copyLibs(type: Copy, dependsOn: jar) {
+    from 'build/libs/'
+    into 'build/output'
+}
+
+task fatJar(type: Jar) {
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+task cleanBuild {
+    dependsOn 'clean'
+    dependsOn 'build'
+    dependsOn 'copyLibs'
+    dependsOn 'copyDist'
+    tasks.findByName('build').mustRunAfter 'clean'
+    tasks.findByName('copyLibs').mustRunAfter 'build'
+    tasks.findByName('copyDist').mustRunAfter 'copyLibs'
+}
